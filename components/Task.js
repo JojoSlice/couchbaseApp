@@ -8,7 +8,8 @@ import {
 } from "react-native";
 import Icon from "react-native-vector-icons/Feather";
 
-const Task = ({ text, completed, onIconPress, onDelete }) => {
+const Task = ({ taskModel, onIconPress, onDelete }) => {
+  const { text, completed } = taskModel;
   const animation = useRef(new Animated.Value(completed ? 1 : 0)).current;
 
   useEffect(() => {
@@ -28,19 +29,24 @@ const Task = ({ text, completed, onIconPress, onDelete }) => {
   return (
     <Animated.View style={[styles.item, { opacity }]}>
       <View style={styles.itemLeft}>
-        <TouchableOpacity onPress={onIconPress}>
+        <TouchableOpacity onPress={() => onIconPress(taskModel)}>
           <Icon
             name={completed ? "check-circle" : "circle"}
             size={24}
             color={completed ? "#4CAF50" : "#55BCF6"}
           />
         </TouchableOpacity>
-        <Text style={[styles.itemText, completed && styles.itemTextCompleted]}>
-          {text}
+        <Text
+          style={[
+            styles.itemText,
+            taskModel.completed && styles.itemTextCompleted,
+          ]}
+        >
+          {taskModel.text}
         </Text>
       </View>
 
-      <TouchableOpacity onPress={onDelete}>
+      <TouchableOpacity onPress={() => onDelete(taskModel)}>
         <Icon name="trash-2" size={20} color="#FF4C4C" />
       </TouchableOpacity>
     </Animated.View>

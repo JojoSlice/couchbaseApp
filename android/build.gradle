@@ -12,6 +12,7 @@ buildscript {
   }
 }
 
+
 def reactNativeAndroidDir = new File(
   providers.exec {
     workingDir(rootDir)
@@ -23,8 +24,11 @@ def reactNativeAndroidDir = new File(
 allprojects {
   repositories {
     maven {
-      // All of React Native (JS, Obj-C sources, Android binaries) is installed from npm
       url(reactNativeAndroidDir)
+    }
+
+    maven {
+      url "https://mobile.maven.couchbase.com/maven2"
     }
 
     google()
@@ -35,3 +39,5 @@ allprojects {
 
 apply plugin: "expo-root-project"
 apply plugin: "com.facebook.react.rootproject"
+apply from: "../node_modules/cbl-reactnative/android/build.gradle"
+

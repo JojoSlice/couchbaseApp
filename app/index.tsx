@@ -1,7 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import { Keyboard, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { DatabaseContext } from "../context/DatabaseContext";
 import Task from "../components/Task.js";
 import { Provider as PaperProvider, Snackbar } from 'react-native-paper';
+import TaskModel from "../models/TaskModel";
 
 export default function Index() {
 
@@ -10,40 +12,73 @@ export default function Index() {
   const [lastDeletedTask, setLastDeletedTask] = useState(null);
   const [snackbarVisible, setSnackbarVisible] = useState(false);
 
-  const handleTaskAdd = () => {
+  const { databaseService } = useContext(DatabaseContext);
+
+
+  useEffect(() => {
+    const fetchTasks = async () => {
+      const tasksFromDb = await databaseService.getAllTasks();
+      setTaskItems(tasksFromDb);
+    };
+
+    fetchTasks(); // hämta direkt vid start
+
+    const interval = setInterval(() => {
+      fetchTasks(); // hämta var 5:e sekund
+    }, 5000);
+
+    return () => clearInterval(interval); // rensa intervallet vid unmount
+  }, []);
+
+
+
+  const handleTaskAdd = async () => {
     Keyboard.dismiss();
     if (task?.trim()) {
-      setTaskItems([...taskItems, { text: task.trim(), completed: false }]);
+      const newTask = new TaskModel({ text: task.trim() });
+      await databaseService.addTask(newTask); // Spara i DB
+      setTaskItems([...taskItems, newTask]);  // Uppdatera UI
       setTask(null);
-    }
-  }
-
-  const toggleTaskCompleted = (index) => {
-    if (taskItems[index]) {
-      const itemsCopy = [...taskItems];
-      itemsCopy[index].completed = !itemsCopy[index].completed;
-      setTaskItems(itemsCopy);
     }
   };
 
-  const deleteTask = (index) => {
-    const deleted = taskItems[index];
-    let itemsCopy = [...taskItems];
+
+  const toggleTaskCompleted = async (task) => {
+    const updatedTask = new TaskModel({
+      ...task,
+      completed: !task.completed,
+    });
+
+    await databaseService.updateTask(updatedTask);
+
+    const itemsCopy = taskItems.map(t => t._id === task._id ? updatedTask : t);
+    setTaskItems(itemsCopy);
+  };
+
+
+  const deleteTask = async (task) => {
+    await databaseService.deleteTask(task._id);
+    const index = taskItems.findIndex(t => t._id === task._id);
+    const itemsCopy = [...taskItems];
     itemsCopy.splice(index, 1);
     setTaskItems(itemsCopy);
-    setLastDeletedTask({ item: deleted, index });
+    setLastDeletedTask({ item: task, index });
     setSnackbarVisible(true);
   };
 
-  const undoDelete = () => {
+
+
+  const undoDelete = async () => {
     if (lastDeletedTask) {
-      let itemsCopy = [...taskItems];
+      await databaseService.addTask(lastDeletedTask.item);
+      const itemsCopy = [...taskItems];
       itemsCopy.splice(lastDeletedTask.index, 0, lastDeletedTask.item);
       setTaskItems(itemsCopy);
       setLastDeletedTask(null);
       setSnackbarVisible(false);
     }
   };
+
 
   return (
     <PaperProvider>
@@ -57,11 +92,10 @@ export default function Index() {
             {
               taskItems.map((item, index) => (
                 <Task
-                  key={index}
-                  text={item.text}
-                  completed={item.completed}
-                  onIconPress={() => toggleTaskCompleted(index)}
-                  onDelete={() => deleteTask(index)}
+                  key={item.id ?? index}
+                  taskModel={item}
+                  onIconPress={(task) => toggleTaskCompleted(task)}
+                  onDelete={(task) => deleteTask(task)}
                 />
               ))}
           </View>
